@@ -12,6 +12,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.common.exceptions import NoSuchElementException
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -84,19 +85,25 @@ class OEMCatalogScraper:
         self.logger.info("All content loaded.")
 
 
-    def get_element_list(self, element_selector):
+    def get_element_list(self, tag_path):
         """
         Gets the elements from the web page.
         """
+        element_selector = "div[ng-repeat='product in products.matches track by product.code']"
         try: 
-            self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, element_selector)))
+            WebDriverWait(self.driver, 10).until(
+                lambda d: len(d.find_elements(By.CSS_SELECTOR, element_selector)) > 0
+            )
             
             products = self.driver.find_elements(By.CSS_SELECTOR, element_selector)
             code_list = []
             for product in products:
                 try:
-                    code = product.find_element(By.CSS_SELECTOR, 'h3 a').text
+                    code = product.find_element(By.CSS_SELECTOR, tag_path).text
                     code_list.append(code)
+                except NoSuchElementException:
+                    self.logger.warning(f"Elemento não encontrado para o seletor: {tag_path}")
+                    code_list.append(None)
                 except Exception as e:
                     self.logger.warning("Error capturing a product:", e)
             self.logger.info("Finished getting elements.")
@@ -252,22 +259,26 @@ def main():
 
     catalog_number = 110
     url = f'https://www.baldor.com/catalog#category={catalog_number}'
-    # scraper.open_url(url)
+    scraper.open_url(url)
 
     element_selector = "div[ng-repeat='product in products.matches track by product.code']"
-    # scraper.scroll_down(element_selector)
-    # product_codes = scraper.get_element_list(element_selector)
+    scraper.scroll_down(element_selector)
+    # time.sleep(1)
+    product_codes = scraper.get_element_list('h3 a')
+    print(product_codes)
+    product_names = scraper.get_element_list('h3 span span')
 
-    # for product_code in product_codes:
-    product_code = 'CEBM3546T'
-    product_dict = scraper.get_dict(product_code)
-    print(product_dict)
+    for i, product_code in enumerate(product_codes[:1]):
+        # product_code = 'CEBM3546T'
+        product_dict = scraper.get_dict(product_code)
+        product_dict['name'] = product_names[i]
 
-    with open(f"output/{product_code}.json", "w", encoding="utf-8") as f:
-        json.dump(product_dict, f, ensure_ascii=False, indent=4)
+        print(product_dict)
+
+        with open(f"output/{product_code}.json", "w", encoding="utf-8") as f:
+            json.dump(product_dict, f, ensure_ascii=False, indent=4)
 # ----- fim do for loop
 
-    time.sleep(1)
     # scraper.close_all()
 
     scraper.logger.info('-'*60)
