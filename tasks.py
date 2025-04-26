@@ -114,16 +114,19 @@ class OEMCatalogScraper:
 
     def get_specs(self, product_code):
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="specs"')
-        hp_0 = self.find_element(self.span_text('Output @ Frequency')).text
-        voltage_0 = self.find_element(self.span_text('Voltage @ Frequency')).text
-        rpm_0 = self.find_element(self.span_text('Synchronous Speed @ Frequency')).text
+        hp = self.find_element(self.span_text('Output @ Frequency')).text
+        voltage = self.find_element(self.span_text('Voltage @ Frequency')).text
+        rpm = self.find_element(self.span_text('Synchronous Speed @ Frequency')).text
         frame = self.find_element(self.span_text('Frame')).text
 
-        hp = hp_0.split('.')[0]
-        voltage = '/'.join([v.split()[0].replace('.0', '') for v in voltage_0.split('\n')])
-        rpm = rpm_0.split('RPM')[0].strip()
+        specs = {
+            'hp': hp.split('.')[0],
+            'voltage': '/'.join([v.split()[0].replace('.0', '') for v in voltage.split('\n')]),
+            'rpm': rpm.split('RPM')[0].strip(),
+            'frame': frame
+        }
 
-        return hp, voltage, rpm, frame
+        return specs
     
     def get_bom(self, product_code):
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="parts"')
@@ -155,22 +158,15 @@ class OEMCatalogScraper:
         # dwg.click()
 
         # # CLICAR NO DOWNLOAD
-        # return manual, cad, image
-
-    def get_details(self, product_code):
+    def get_dict(self, product_code):
         product_dict = {
             "product_id": product_code,
             "name": None,
-            "description": None,
-            "specs": {"hp": None, "voltage": None, "rpm": None, "frame": None},
-            "bom": [],
-            "assets": {"manual": None, "cad": None, "image": None}
+            "description": None
+            # "specs": {"hp": None, "voltage": None, "rpm": None, "frame": None}
         }
 
-        specs = self.get_specs(product_code)
-        for key, spec in zip(product_dict['specs'].keys(), specs):
-            product_dict['specs'][key] = spec
-
+        product_dict['specs'] = self.get_specs(product_code)
         product_dict['bom'] = self.get_bom(product_code)
 
         assets = self.get_assets(product_code)
@@ -242,10 +238,7 @@ def main():
 
     # for product_code in product_codes:
     product_code = 'CEBM3546T'
-    # # product_url = f'https://www.baldor.com/catalog/{product_code}'
-    # # scraper.open_url(product_url)
-
-    product_dict = scraper.get_details(product_code)
+    product_dict = scraper.get_dict(product_code)
     print(product_dict)
 
     with open(f"{product_code}.json", "w", encoding="utf-8") as f:
