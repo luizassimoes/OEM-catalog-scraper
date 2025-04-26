@@ -8,12 +8,12 @@ import urllib.parse
 from datetime import datetime, timedelta
 from dateutil import parser
 from dateutil.relativedelta import relativedelta
-from openpyxl import Workbook
-from openpyxl.styles import Font, Alignment
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
+
+from concurrent.futures import ThreadPoolExecutor
 
 class OEMCatalogScraper:
 
@@ -149,6 +149,26 @@ class OEMCatalogScraper:
                 })
         return bom_list
     
+    def download_asset(self, product_code, asset, url, path, headers):
+        self.logger.info(f'{product_code} Getting {asset}.')
+        try:
+            with requests.get(url, stream=True, timeout=(5, 30), headers=headers) as response:
+                response.raise_for_status()  # Se der erro tipo 404, levanta exceção
+                with open(path, 'wb') as f:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            f.write(chunk)
+
+            self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
+            return asset, path.replace('output/', '')
+
+        except requests.exceptions.RequestException as e:
+            if not url:
+                self.logger.info(f'{product_code} No {asset} avaliable for this product.')
+            else:
+                self.logger.error(f'{product_code} Error trying to download the {asset}: {e}')
+            return asset, None
+
     def get_assets(self, product_code):
         assets = {"manual": None, "cad": None, "image": None}
         assets_url = f'output/assets/{product_code}/'
@@ -184,24 +204,15 @@ class OEMCatalogScraper:
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
             }
 
-        for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
-            self.logger.info(f'{product_code} Getting {asset}.')
-            try:
-                with requests.get(url, stream=True, timeout=(5, 30), headers=headers) as pdf_request:
-                    pdf_request.raise_for_status()  # Se der erro tipo 404, levanta exceção
-                    with open(path, 'wb') as f:
-                        for chunk in pdf_request.iter_content(chunk_size=8192):
-                            if chunk:
-                                f.write(chunk)
-
-                assets[asset] = path.replace('output/', '')
-                self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
-
-            except requests.exceptions.RequestException as e:
-                if not url:
-                    self.logger.info(f'{product_code} No image avaliable for this product.')
-                else:
-                    self.logger.error(f'{product_code} Error trying to download the {asset}: {e}')
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            futures = []
+            for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
+                futures.append(executor.submit(self.download_asset, product_code, asset, url, path, headers))
+            
+            for future in futures:
+                asset, result_path = future.result()
+                if result_path:
+                    assets[asset] = result_path
 
         return assets
 
