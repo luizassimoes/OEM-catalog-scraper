@@ -1,7 +1,9 @@
 import re
+import os
 import time
 import json
 import logging
+import requests
 import urllib.parse
 from datetime import datetime, timedelta
 from dateutil import parser
@@ -148,6 +150,11 @@ class OEMCatalogScraper:
         return bom_list
     
     def get_assets(self, product_code):
+        assets = {"manual": None, "cad": None, "image": None}
+        assets_url = f'output/assets/{product_code}/'
+        os.makedirs(os.path.dirname(assets_url), exist_ok=True)
+
+        # CAD
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="drawings"')
         self.scroll_down(None, max_scrolls=1)
         radio_button_2d = self.driver.find_element(By.XPATH, "//input[@value='2D']")
@@ -156,8 +163,48 @@ class OEMCatalogScraper:
         # dropdown.click()
         # dwg = self.driver.find_element(By.XPATH, "//option[contains(@value, 'DWG')]")
         # dwg.click()
-
         # # CLICAR NO DOWNLOAD
+
+
+        # pegar PDF se o link nao for igual
+        # pdf_tag = self.driver.find_element(By.ID, 'infoPacket')
+        # pdf_url = pdf_tag.get_attribute('href')
+
+        pdf_url = f"https://www.baldor.com/api/products/{product_code}/infopacket"
+        pdf_path = f'{assets_url}manual.pdf'
+
+        img_tag = self.driver.find_element(By.CLASS_NAME, 'product-image')
+        img_url = img_tag.get_attribute('src') 
+        img_path = f'{assets_url}img.jpg'
+
+        if img_url.endswith('images/451?bc=white&as=1&h=256&w=256'):
+            img_url = None
+
+        headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+            }
+
+        for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
+            self.logger.info(f'{product_code} Getting {asset}.')
+            try:
+                with requests.get(url, stream=True, timeout=(5, 30), headers=headers) as pdf_request:
+                    pdf_request.raise_for_status()  # Se der erro tipo 404, levanta exceção
+                    with open(path, 'wb') as f:
+                        for chunk in pdf_request.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+
+                assets[asset] = path.replace('output/', '')
+                self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
+
+            except requests.exceptions.RequestException as e:
+                if not url:
+                    self.logger.info(f'{product_code} No image avaliable for this product.')
+                else:
+                    self.logger.error(f'{product_code} Error trying to download the {asset}: {e}')
+
+        return assets
+
     def get_dict(self, product_code):
         product_dict = {
             "product_id": product_code,
@@ -168,10 +215,7 @@ class OEMCatalogScraper:
 
         product_dict['specs'] = self.get_specs(product_code)
         product_dict['bom'] = self.get_bom(product_code)
-
-        assets = self.get_assets(product_code)
-        # for key, asset in zip(product_dict['assets'].keys(), assets):
-        #     product_dict['assets'][key] = asset
+        product_dict['assets'] = self.get_assets(product_code)
 
         product_dict['description'] = self.driver.find_element(By.CLASS_NAME, 'product-description').text
 
@@ -241,10 +285,10 @@ def main():
     product_dict = scraper.get_dict(product_code)
     print(product_dict)
 
-    with open(f"{product_code}.json", "w", encoding="utf-8") as f:
+    with open(f"output/{product_code}.json", "w", encoding="utf-8") as f:
         json.dump(product_dict, f, ensure_ascii=False, indent=4)
-
 # ----- fim do for loop
+
     time.sleep(1)
     # scraper.close_all()
 
