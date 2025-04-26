@@ -1,5 +1,6 @@
 import re
 import time
+import json
 import logging
 import urllib.parse
 from datetime import datetime, timedelta
@@ -242,7 +243,6 @@ def main():
     # scraper.scroll_down(element_selector)
     # product_codes = scraper.get_element_list(element_selector)
 
-    json_schemas = []
     # for product_code in product_codes:
     product_code = 'CEBM3546T'
     # # product_url = f'https://www.baldor.com/catalog/{product_code}'
@@ -251,14 +251,11 @@ def main():
     product_dict = scraper.get_details(product_code)
     print(product_dict)
 
-    json_schemas.append(product_dict)
+    with open(f"{product_code}.json", "w", encoding="utf-8") as f:
+        json.dump(product_dict, f, ensure_ascii=False, indent=4)
 
-    # scraper.search(url, query)
-    # scraper.sort_by_newest()
-    # time.sleep(1)
-    # scraper.select_topic(topic)
+# ----- fim do for loop
     time.sleep(1)
-
     # scraper.close_all()
 
     scraper.logger.info('-'*60)
