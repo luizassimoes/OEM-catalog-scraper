@@ -111,15 +111,15 @@ class OEMCatalogScraper:
         except:
             return None
     
-    def span_text(self, text):
+    def specs_span(self, text):
         return f"//span[text()='{text}']/following-sibling::span[@class='value']"
 
     def get_specs(self, product_code):
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="specs"')
-        hp = self.find_element(self.span_text('Output @ Frequency')).text
-        voltage = self.find_element(self.span_text('Voltage @ Frequency')).text
-        rpm = self.find_element(self.span_text('Synchronous Speed @ Frequency')).text
-        frame = self.find_element(self.span_text('Frame')).text
+        hp = self.find_element(self.specs_span('Output @ Frequency')).text
+        voltage = self.find_element(self.specs_span('Voltage @ Frequency')).text
+        rpm = self.find_element(self.specs_span('Synchronous Speed @ Frequency')).text
+        frame = self.find_element(self.specs_span('Frame')).text
 
         specs = {
             'hp': hp.split('.')[0],
