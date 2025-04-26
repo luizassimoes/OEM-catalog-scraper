@@ -139,6 +139,38 @@ class OEMCatalogScraper:
         rpm = rpm_0.split('RPM')[0].strip()
 
         return hp, voltage, rpm, frame
+    
+    def get_bom(self, product_code):
+        self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="parts"')
+        bom_rows = self.driver.find_elements(By.CSS_SELECTOR, 'table.data-table tbody tr')
+        bom_list = []
+        for row in bom_rows:
+            cells = row.find_elements(By.TAG_NAME, 'td')
+            part_number = cells[0].text
+            description = cells[1].text
+            quantity = cells[2].text
+
+            if any([part_number, description, quantity]):
+                quantity = int(quantity.split('.')[0])
+                bom_list.append({
+                    "part_number": part_number,
+                    "description": description,
+                    "quantity": quantity
+                })
+        return bom_list
+    
+    def get_assets(self, product_code):
+        self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="drawings"')
+        self.scroll_down(None, max_scrolls=1)
+        radio_button_2d = self.driver.find_element(By.XPATH, "//input[@value='2D']")
+        radio_button_2d.click()
+        # dropdown = self.driver.find_element(By.XPATH, "//select[@kendo-drop-down-list]")
+        # dropdown.click()
+        # dwg = self.driver.find_element(By.XPATH, "//option[contains(@value, 'DWG')]")
+        # dwg.click()
+
+        # # CLICAR NO DOWNLOAD
+        # return manual, cad, image
 
     def get_details(self, product_code):
         product_dict = {
@@ -154,35 +186,15 @@ class OEMCatalogScraper:
         for key, spec in zip(product_dict['specs'].keys(), specs):
             product_dict['specs'][key] = spec
 
-        self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="parts"')
-        bom_rows = self.driver.find_elements(By.CSS_SELECTOR, 'table.data-table tbody tr')
-        for row in bom_rows:
-            cells = row.find_elements(By.TAG_NAME, 'td')
-            part_number = cells[0].text
-            description = cells[1].text
-            quantity = cells[2].text
+        product_dict['bom'] = self.get_bom(product_code)
 
-            if any([part_number, description, quantity]):
-                quantity = int(quantity.split('.')[0])
-                product_dict['bom'].append({
-                    "part_number": part_number,
-                    "description": description,
-                    "quantity": quantity
-                })
+        assets = self.get_assets(product_code)
+        # for key, asset in zip(product_dict['assets'].keys(), assets):
+        #     product_dict['assets'][key] = asset
 
-        self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="drawings"')
-        self.scroll_down(None, max_scrolls=1)
-        radio_button_2d = self.driver.find_element(By.XPATH, "//input[@value='2D']")
-        radio_button_2d.click()
-        # dropdown = self.driver.find_element(By.XPATH, "//select[@kendo-drop-down-list]")
-        # dropdown.click()
-        # dwg = self.driver.find_element(By.XPATH, "//option[contains(@value, 'DWG')]")
-        # dwg.click()
-
-        # # CLICAR NO DOWNLOAD
+        product_dict['description'] = self.driver.find_element(By.CLASS_NAME, 'product-description').text
 
         return product_dict
-
 
 
     def close_all(self):
