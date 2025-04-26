@@ -243,39 +243,6 @@ class OEMCatalogScraper:
         else:
             self.logger.error('ERROR close_all() | WebDriver not initialized.')
 
-    def to_excel(self, data):
-        wb = Workbook()
-        sheet = wb.active
-
-        headers = ['Title', 'Description', 'Date', 'Filename', 'Count Query in Title and Description', 'Contains Money in Title']
-        for i_col, header in enumerate(headers):
-            cell_header = sheet.cell(row=1, column=i_col+1)
-            cell_header.value = header
-            cell_header.font = Font(bold=True, size=12)
-            cell_header.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-
-            if data[i_col] is not None:
-                for i_row, val in enumerate(data[i_col]):
-                    cell_content = sheet.cell(row=i_row+2, column=i_col+1)
-                    cell_content.value = val
-                    sheet.row_dimensions[i_row+2].height = 60
-                    if i_col > 1:  # Horizontal aligment not for columns Title and Description
-                        cell_content.alignment = Alignment(horizontal='center', vertical='center')
-                    else:
-                        cell_content.alignment = Alignment(vertical='center', wrap_text=True)
-            else:
-                self.logger.error(f'ERROR to_excel() | {header} list is None.')
-
-        sheet.column_dimensions['A'].width = 25
-        sheet.column_dimensions['B'].width = 50
-        for col in ['C', 'D', 'E', 'F']:
-            sheet.column_dimensions[col].width = 25
-        sheet.row_dimensions[1].height = 35
-
-        sheet.title = 'NEWS'
-        self.logger.info('Excel done.')
-        return wb
-
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
