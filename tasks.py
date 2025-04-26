@@ -53,18 +53,6 @@ class OEMCatalogScraper:
         else:
             self.logger.error('ERR0R open_url() | WebDriver not initialized. You must call set_webdriver() first.')
 
-    # def search(self, url: str, search_query: str):
-    #     """
-    #     Perform a search on the given URL using the provided query string.
-    #     """
-    #     try:
-    #         search_url = url + urllib.parse.quote(search_query)
-    #         self.logger.info(f'Search query submitted: {search_query}.')
-    #         self.open_url(search_url)
-    #     except Exception as e:
-    #         self.logger.error(f'ERROR search() | Could not find element: {e}')
-
-
     def scroll_down(self, element_selector, pause_time=3, max_scrolls=2):
         """
         Rola a página para baixo várias vezes para carregar todos os itens.
@@ -96,10 +84,7 @@ class OEMCatalogScraper:
 
     def get_element_list(self, element_selector):
         """
-        Gets the elements from the web page. The src parameter allows the function to treat img tags.
-        The function captures all the news blocks and checks if they have the according element in it. 
-        If not, it registers an empty string so the order of the information is correctly organized in
-        the final Excel file.        
+        Gets the elements from the web page.
         """
         try: 
             self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, element_selector)))
