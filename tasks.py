@@ -87,64 +87,6 @@ class OEMCatalogScraper:
                 break
             last_height = new_height
 
-        self.logger.info("All content loaded.")
-
-
-    # def get_element_list(self, tag_path):
-    #     """
-    #     Gets the elements from the web page.
-    #     """
-    #     element_selector = "div[ng-repeat='product in products.matches track by product.code']"
-    #     try: 
-    #         print(1)
-    #         self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, element_selector)))
-    #         print(2)
-            
-    #         products = self.driver.find_elements(By.CSS_SELECTOR, element_selector)
-    #         print(len(product))
-    #         code_list = []
-    #         for product in products:
-    #             try:
-    #                 code = product.find_element(By.CSS_SELECTOR, tag_path).text
-    #                 code_list.append(code)
-    #             except NoSuchElementException:
-    #                 self.logger.warning(f"Elemento não encontrado para o seletor: {tag_path}")
-    #                 code_list.append(None)
-    #             except Exception as e:
-    #                 self.logger.warning("Error capturing a product:", e)
-    #         self.logger.info("Finished getting elements.")
-    #         return code_list
-    #     except Exception as e:
-    #         self.logger.warning("Could not get any of the products.")
-
-
-    # def xpath_element(self, element_xpath):
-    #     try:
-    #         return self.driver.find_element(By.XPATH, element_xpath)
-    #     except:
-    #         return None
-    
-    # def specs_span(self, text):
-    #     return f"//span[text()='{text}']/following-sibling::span[@class='value']"
-
-    # def get_specs(self):
-    #     self.open_url(f'https://www.baldor.com/catalog/{self.product_code}#tab="specs"')
-
-    #     self.wait.until(EC.presence_of_all_elements_located((By.XPATH,self.specs_span('Output @ Frequency'))))
-
-    #     hp = self.xpath_element(self.specs_span('Output @ Frequency')).text
-    #     voltage = self.xpath_element(self.specs_span('Voltage @ Frequency')).text
-    #     rpm = self.xpath_element(self.specs_span('Synchronous Speed @ Frequency')).text
-    #     frame = self.xpath_element(self.specs_span('Frame')).text
-
-    #     specs = {
-    #         'hp': hp.split('.')[0],
-    #         'voltage': '/'.join([v.split()[0].replace('.0', '') for v in voltage.split('\n')]),
-    #         'rpm': rpm.split('RPM')[0].strip(),
-    #         'frame': frame
-    #     }
-
-    #     return specs
 
     def get_products(self, url):
         self.logger.info('get_products')
@@ -208,26 +150,6 @@ class OEMCatalogScraper:
                     "quantity": quantity
                 })
         return bom_list
-    
-    def download_asset(self, product_code, asset, url, path, headers):
-        self.logger.info(f'{product_code} Getting {asset}.')
-        try:
-            with requests.get(url, stream=True, timeout=(5, 30), headers=headers) as response:
-                response.raise_for_status()  # Se der erro tipo 404, levanta exceção
-                with open(path, 'wb') as f:
-                    for chunk in response.iter_content(chunk_size=8192):
-                        if chunk:
-                            f.write(chunk)
-
-            self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
-            return asset, path.replace('output/', '')
-
-        except requests.exceptions.RequestException as e:
-            if not url:
-                self.logger.info(f'{product_code} No {asset} avaliable for this product.')
-            else:
-                self.logger.error(f'{product_code} Error trying to download the {asset}: {e}')
-            return asset, None
 
     def get_assets(self, product_code):
         assets = {"manual": None, "cad": None, "image": None}
@@ -260,19 +182,7 @@ class OEMCatalogScraper:
         if img_url.endswith('images/451?bc=white&as=1&h=256&w=256'):
             img_url = None
 
-        headers = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-            }
-
-        with ThreadPoolExecutor(max_workers=2) as executor:
-            futures = []
-            for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
-                futures.append(executor.submit(self.download_asset, product_code, asset, url, path, headers))
-            
-            for future in futures:
-                asset, result_path = future.result()
-                if result_path:
-                    assets[asset] = result_path
+        for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
 
         return assets
 
