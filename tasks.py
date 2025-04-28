@@ -272,24 +272,30 @@ class OEMCatalogScraper:
 
         return assets
 
-    def get_dict(self, product_code):
-        product_dict = {
-            "product_id": product_code,
-            "name": None,
-            "description": None
-            # "specs": {"hp": None, "voltage": None, "rpm": None, "frame": None}
-        }
+    # def get_dict(self, product_code):
+    #     bom = self.get_bom()
+    #     assets = self.get_assets()
 
-        product_dict['specs'] = self.get_specs(product_code)
-        product_dict['bom'] = self.get_bom(product_code)
-        product_dict['assets'] = self.get_assets(product_code)
+    #     return bom, assets
 
-        product_dict['description'] = self.driver.find_element(By.CLASS_NAME, 'product-description').text
+    def processing_product(self, product):
+        self.logger.info('processing_product')
+        self.set_webdriver()
+        product_id = product['product_id']
+        self.logger.info(f'Product {product_id}.')
+        # product_code = 'CEBM3546T'
 
-        return product_dict
+        product['bom'] = self.get_bom(product_id)
+        product['assets'] = self.get_assets(product_id)
 
+        print(product)
+
+        with open(f"output/{product_id}.json", "w", encoding="utf-8") as f:
+            json.dump(product, f, ensure_ascii=False, indent=4)
+        self.close_all()
 
     def close_all(self):
+        self.logger.info('close_all')
         if self.driver:
             try:
                 self.driver.quit()
@@ -301,34 +307,37 @@ class OEMCatalogScraper:
 
 
 def main():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(filename='output/0_logging.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
     scraper = OEMCatalogScraper()
     scraper.set_webdriver()
 
     catalog_number = 110
-    url = f'https://www.baldor.com/catalog#category={catalog_number}'
-    scraper.open_url(url)
+    # url = f'https://www.baldor.com/catalog#category={catalog_number}'
+    num_products = 15
+    url = f"https://www.baldor.com/api/products?include=results&language=en-US&pageIndex=3&pageSize={num_products}&category={catalog_number}"    
+    # scraper.open_url(url)
 
-    element_selector = "div[ng-repeat='product in products.matches track by product.code']"
-    scraper.scroll_down(element_selector)
+    # element_selector = "div[ng-repeat='product in products.matches track by product.code']"
+    # scraper.scroll_down(element_selector)
     # time.sleep(1)
-    product_codes = scraper.get_element_list('h3 a')
-    print(product_codes)
-    product_names = scraper.get_element_list('h3 span span')
+    # product_codes = scraper.get_element_list('h3 a')
+    scraper.logger.info(f'Getting data for {num_products} products in catalog {catalog_number}.')
+    products = scraper.get_products(url)
+    # print(product_codes)
+    # product_names = scraper.get_element_list('h3 span span')
+    scraper.close_all()
 
-    for i, product_code in enumerate(product_codes[:1]):
-        # product_code = 'CEBM3546T'
-        product_dict = scraper.get_dict(product_code)
-        product_dict['name'] = product_names[i]
+    with ThreadPoolExecutor(max_workers=5) as executor:
+        for product in products:
+            executor.submit(scraper.processing_product, product)
 
-        print(product_dict)
-
-        with open(f"output/{product_code}.json", "w", encoding="utf-8") as f:
-            json.dump(product_dict, f, ensure_ascii=False, indent=4)
+        # secs = random.uniform(0.1, 2)
+        # scraper.logger.info(f'Waiting for {secs} seconds.')
+        # time.sleep(secs)
 # ----- fim do for loop
 
-    # scraper.close_all()
+    scraper.close_all()
 
     scraper.logger.info('-'*60)
 
