@@ -89,47 +89,43 @@ class OEMCatalogScraper:
 
 
     def get_products(self, url):
-        self.logger.info('get_products')
-        # headers = {
-        #     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        # }
+        try:
+            with requests.get(url, headers=self.headers) as response:
+                response.raise_for_status()  # Se der erro tipo 404, levanta exceção
+                if response.status_code == 200:
+                    # Converter a resposta para JSON e exibir
+                    data = response.json()
 
-        # Fazer a requisição GET para obter o JSON
-        response = requests.get(url, headers=headers)
+                    result = []
+                    for item in data['results']['matches']:
+                        for attribute in item['attributes']:
+                            if attribute['name'] == 'output_at_frequency':
+                                hp = attribute['values'][0]['value'].replace('hp', '')
+                            if attribute['name'] == 'voltage_at_frequency':
+                                values = [item['value'].replace('V', '') for item in attribute['values']]
+                                voltage = '/'.join(values)
+                            if attribute['name'] == 'synchronous_speed_at_freq':
+                                rpm = attribute['values'][0]['value'].replace('rpm', '')
+                            if attribute['name'] == 'frame':
+                                frame = attribute['values'][0]['value']
 
-        # Verificar se a requisição foi bem-sucedida (status code 200)
-        if response.status_code == 200:
-            # Converter a resposta para JSON e exibir
-            data = response.json()
+                        product_id = item.get('code')
+                        name = item['categories'][0]['text'] if item['categories'] else None
+                        
+                        formatted_item = {
+                        'product_id': product_id,
+                        'name': f"{name} Motor",
+                        'description': item.get('description'),
+                        'specs': {'hp': hp, 'voltage': voltage, 'rpm': rpm, 'frame': frame}
+                        }
+                        result.append(formatted_item)
 
-            result = []
-            for item in data['results']['matches']:
-                for attribute in item['attributes']:
-                    if attribute['name'] == 'output_at_frequency':
-                        hp = attribute['values'][0]['value'].replace('hp', '')
-                    if attribute['name'] == 'voltage_at_frequency':
-                        values = [item['value'].replace('V', '') for item in attribute['values']]
-                        voltage = '/'.join(values)
-                    if attribute['name'] == 'synchronous_speed_at_freq':
-                        rpm = attribute['values'][0]['value'].replace('rpm', '')
-                    if attribute['name'] == 'frame':
-                        frame = attribute['values'][0]['value']
-
-                product_id = item.get('code')
-                name = item['categories'][0]['text'] if item['categories'] else None
-                
-                formatted_item = {
-                'product_id': product_id,
-                'name': f"{name} Motor",
-                'description': item.get('description'),
-                'specs': {'hp': hp, 'voltage': voltage, 'rpm': rpm, 'frame': frame}
-                }
-                result.append(formatted_item)
-
-                self.logger.info(f'{product_id} basic information extracted.')
-            return result
-        else:
-            self.logger.info(f"Erro {response.status_code}: Não foi possível acessar a URL.")
+                        self.logger.info(f'{product_id} basic information extracted.')
+                    return result
+                else:
+                    self.logger.info(f"{product_id} Error {response.status_code}: Inaccessible URL.")
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f'Error trying to get products: {e}')
 
     
     def get_bom(self, product_code):
@@ -183,21 +179,25 @@ class OEMCatalogScraper:
             img_url = None
 
         for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
+            try:
+                with requests.get(url, stream=True, timeout=(5, 30), headers=self.headers) as response:
+                    response.raise_for_status()  # Se der erro tipo 404, levanta exceção
+                    with open(path, 'wb') as f:
+                        f.write(response.content)
+                self.logger.info(f'{product_code} Image successfully downloaded.')
+
+            except requests.exceptions.RequestException as e:
+                if not url:
+                    self.logger.info(f'{product_code} No {asset.capitalize()} avaliable for this product.')
+                else:
+                    self.logger.error(f'{product_code} Error trying to download the {asset}: {e}')
+            assets[asset] = path
 
         return assets
 
-    # def get_dict(self, product_code):
-    #     bom = self.get_bom()
-    #     assets = self.get_assets()
-
-    #     return bom, assets
-
     def processing_product(self, product):
-        self.logger.info('processing_product')
-        self.set_webdriver()
         product_id = product['product_id']
         self.logger.info(f'Product {product_id}.')
-        # product_code = 'CEBM3546T'
 
         product['bom'] = self.get_bom(product_id)
         product['assets'] = self.get_assets(product_id)
@@ -206,10 +206,8 @@ class OEMCatalogScraper:
 
         with open(f"output/{product_id}.json", "w", encoding="utf-8") as f:
             json.dump(product, f, ensure_ascii=False, indent=4)
-        self.close_all()
 
     def close_all(self):
-        self.logger.info('close_all')
         if self.driver:
             try:
                 self.driver.quit()
