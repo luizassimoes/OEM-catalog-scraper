@@ -218,6 +218,11 @@ class OEMCatalogScraper:
         else:
             self.logger.error('ERROR close_all() | WebDriver not initialized.')
 
+def run_scraper_for_product(product):
+    scraper = OEMCatalogScraper()
+    scraper.set_webdriver()
+    scraper.processing_product(product)
+    scraper.close_all()
 
 def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='output/0_logging.log')
@@ -226,29 +231,15 @@ def main():
     scraper.set_webdriver()
 
     catalog_number = 110
-    # url = f'https://www.baldor.com/catalog#category={catalog_number}'
     num_products = 15
     url = f"https://www.baldor.com/api/products?include=results&language=en-US&pageIndex=3&pageSize={num_products}&category={catalog_number}"    
-    # scraper.open_url(url)
 
-    # element_selector = "div[ng-repeat='product in products.matches track by product.code']"
-    # scraper.scroll_down(element_selector)
-    # time.sleep(1)
-    # product_codes = scraper.get_element_list('h3 a')
     scraper.logger.info(f'Getting data for {num_products} products in catalog {catalog_number}.')
     products = scraper.get_products(url)
-    # print(product_codes)
-    # product_names = scraper.get_element_list('h3 span span')
-    scraper.close_all()
 
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=3) as executor:
         for product in products:
-            executor.submit(scraper.processing_product, product)
-
-        # secs = random.uniform(0.1, 2)
-        # scraper.logger.info(f'Waiting for {secs} seconds.')
-        # time.sleep(secs)
-# ----- fim do for loop
+            executor.submit(run_scraper_for_product, product)
 
     scraper.close_all()
 
