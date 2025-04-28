@@ -72,7 +72,7 @@ class OEMCatalogScraper:
             # print(i, ':', len(self.driver.find_elements(By.CSS_SELECTOR, element_selector)))
 
             try:
-                WebDriverWait(self.driver, 10).until(
+                self.wait.until(
                     lambda d: len(d.find_elements(By.CSS_SELECTOR, element_selector)) >= 10*(i+2)
                 )
                 # print(len(self.driver.find_elements(By.CSS_SELECTOR, element_selector)))
@@ -86,57 +86,105 @@ class OEMCatalogScraper:
         self.logger.info("All content loaded.")
 
 
-    def get_element_list(self, tag_path):
-        """
-        Gets the elements from the web page.
-        """
-        element_selector = "div[ng-repeat='product in products.matches track by product.code']"
-        try: 
-            WebDriverWait(self.driver, 10).until(
-                lambda d: len(d.find_elements(By.CSS_SELECTOR, element_selector)) > 0
-            )
+    # def get_element_list(self, tag_path):
+    #     """
+    #     Gets the elements from the web page.
+    #     """
+    #     element_selector = "div[ng-repeat='product in products.matches track by product.code']"
+    #     try: 
+    #         print(1)
+    #         self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, element_selector)))
+    #         print(2)
             
-            products = self.driver.find_elements(By.CSS_SELECTOR, element_selector)
-            code_list = []
-            for product in products:
-                try:
-                    code = product.find_element(By.CSS_SELECTOR, tag_path).text
-                    code_list.append(code)
-                except NoSuchElementException:
-                    self.logger.warning(f"Elemento não encontrado para o seletor: {tag_path}")
-                    code_list.append(None)
-                except Exception as e:
-                    self.logger.warning("Error capturing a product:", e)
-            self.logger.info("Finished getting elements.")
-            return code_list
-        except Exception as e:
-            self.logger.warning("Could not get any of the products.")
+    #         products = self.driver.find_elements(By.CSS_SELECTOR, element_selector)
+    #         print(len(product))
+    #         code_list = []
+    #         for product in products:
+    #             try:
+    #                 code = product.find_element(By.CSS_SELECTOR, tag_path).text
+    #                 code_list.append(code)
+    #             except NoSuchElementException:
+    #                 self.logger.warning(f"Elemento não encontrado para o seletor: {tag_path}")
+    #                 code_list.append(None)
+    #             except Exception as e:
+    #                 self.logger.warning("Error capturing a product:", e)
+    #         self.logger.info("Finished getting elements.")
+    #         return code_list
+    #     except Exception as e:
+    #         self.logger.warning("Could not get any of the products.")
 
 
-    def find_element(self, element_xpath):
-        try:
-            return self.driver.find_element(By.XPATH, element_xpath)
-        except:
-            return None
+    # def xpath_element(self, element_xpath):
+    #     try:
+    #         return self.driver.find_element(By.XPATH, element_xpath)
+    #     except:
+    #         return None
     
-    def specs_span(self, text):
-        return f"//span[text()='{text}']/following-sibling::span[@class='value']"
+    # def specs_span(self, text):
+    #     return f"//span[text()='{text}']/following-sibling::span[@class='value']"
 
-    def get_specs(self, product_code):
-        self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="specs"')
-        hp = self.find_element(self.specs_span('Output @ Frequency')).text
-        voltage = self.find_element(self.specs_span('Voltage @ Frequency')).text
-        rpm = self.find_element(self.specs_span('Synchronous Speed @ Frequency')).text
-        frame = self.find_element(self.specs_span('Frame')).text
+    # def get_specs(self):
+    #     self.open_url(f'https://www.baldor.com/catalog/{self.product_code}#tab="specs"')
 
-        specs = {
-            'hp': hp.split('.')[0],
-            'voltage': '/'.join([v.split()[0].replace('.0', '') for v in voltage.split('\n')]),
-            'rpm': rpm.split('RPM')[0].strip(),
-            'frame': frame
+    #     self.wait.until(EC.presence_of_all_elements_located((By.XPATH,self.specs_span('Output @ Frequency'))))
+
+    #     hp = self.xpath_element(self.specs_span('Output @ Frequency')).text
+    #     voltage = self.xpath_element(self.specs_span('Voltage @ Frequency')).text
+    #     rpm = self.xpath_element(self.specs_span('Synchronous Speed @ Frequency')).text
+    #     frame = self.xpath_element(self.specs_span('Frame')).text
+
+    #     specs = {
+    #         'hp': hp.split('.')[0],
+    #         'voltage': '/'.join([v.split()[0].replace('.0', '') for v in voltage.split('\n')]),
+    #         'rpm': rpm.split('RPM')[0].strip(),
+    #         'frame': frame
+    #     }
+
+    #     return specs
+
+    def get_products(self, url):
+        self.logger.info('get_products')
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
 
-        return specs
+        # Fazer a requisição GET para obter o JSON
+        response = requests.get(url, headers=headers)
+
+        # Verificar se a requisição foi bem-sucedida (status code 200)
+        if response.status_code == 200:
+            # Converter a resposta para JSON e exibir
+            data = response.json()
+
+            result = []
+            for item in data['results']['matches']:
+                for attribute in item['attributes']:
+                    if attribute['name'] == 'output_at_frequency':
+                        hp = attribute['values'][0]['value'].replace('hp', '')
+                    if attribute['name'] == 'voltage_at_frequency':
+                        values = [item['value'].replace('V', '') for item in attribute['values']]
+                        voltage = '/'.join(values)
+                    if attribute['name'] == 'synchronous_speed_at_freq':
+                        rpm = attribute['values'][0]['value'].replace('rpm', '')
+                    if attribute['name'] == 'frame':
+                        frame = attribute['values'][0]['value']
+
+                product_id = item.get('code')
+                name = item['categories'][0]['text'] if item['categories'] else None
+                
+                formatted_item = {
+                'product_id': product_id,
+                'name': f"{name} Motor",
+                'description': item.get('description'),
+                'specs': {'hp': hp, 'voltage': voltage, 'rpm': rpm, 'frame': frame}
+                }
+                result.append(formatted_item)
+
+                self.logger.info(f'{product_id} basic information extracted.')
+            return result
+        else:
+            self.logger.info(f"Erro {response.status_code}: Não foi possível acessar a URL.")
+
     
     def get_bom(self, product_code):
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="parts"')
