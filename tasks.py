@@ -81,7 +81,7 @@ class OEMCatalogScraper:
                 )
                 # print(len(self.driver.find_elements(By.CSS_SELECTOR, element_selector)))
             except:
-                self.logger.info("No more content to load.")
+                self.logger.info(f"{element_selector} All content loaded.")
 
             if new_height == last_height:  # It means there are no more new content
                 break
@@ -130,6 +130,7 @@ class OEMCatalogScraper:
     
     def get_bom(self, product_code):
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="parts"')
+        self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'table.data-table tbody tr')))
         bom_rows = self.driver.find_elements(By.CSS_SELECTOR, 'table.data-table tbody tr')
         bom_list = []
         for row in bom_rows:
@@ -219,7 +220,7 @@ class OEMCatalogScraper:
 
 
 def main():
-    logging.basicConfig(filename='output/0_logging.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='output/0_logging.log')
 
     scraper = OEMCatalogScraper()
     scraper.set_webdriver()
