@@ -4,15 +4,10 @@ import time
 import json
 import logging
 import requests
-import urllib.parse
-from datetime import datetime, timedelta
-from dateutil import parser
-from dateutil.relativedelta import relativedelta
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from selenium.common.exceptions import NoSuchElementException
 
 from concurrent.futures import ThreadPoolExecutor
 
@@ -81,7 +76,7 @@ class OEMCatalogScraper:
                 )
                 # print(len(self.driver.find_elements(By.CSS_SELECTOR, element_selector)))
             except:
-                self.logger.info(f"{element_selector} All content loaded.")
+                self.logger.info(f"All page content loaded.")
 
             if new_height == last_height:  # It means there are no more new content
                 break
@@ -111,10 +106,14 @@ class OEMCatalogScraper:
 
                         product_id = item.get('code')
                         name = item['categories'][0]['text'] if item['categories'] else None
+                        if "Motors" in name:
+                            name = name.replace('Motors', 'Motor')
+                        else:
+                            name = f'{name} Motor'
                         
                         formatted_item = {
                         'product_id': product_id,
-                        'name': f"{name} Motor",
+                        'name': name,
                         'description': item.get('description'),
                         'specs': {'hp': hp, 'voltage': voltage, 'rpm': rpm, 'frame': frame}
                         }
@@ -185,11 +184,11 @@ class OEMCatalogScraper:
                     response.raise_for_status()  # Se der erro tipo 404, levanta exceção
                     with open(path, 'wb') as f:
                         f.write(response.content)
-                self.logger.info(f'{product_code} Image successfully downloaded.')
+                self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
 
             except requests.exceptions.RequestException as e:
                 if not url:
-                    self.logger.info(f'{product_code} No {asset.capitalize()} avaliable for this product.')
+                    self.logger.info(f'{product_code} No {asset} avaliable for this product.')
                 else:
                     self.logger.error(f'{product_code} Error trying to download the {asset}: {e}')
             assets[asset] = path
@@ -230,7 +229,7 @@ def main():
     scraper = OEMCatalogScraper()
     scraper.set_webdriver()
 
-    catalog_number = 110
+    catalog_number = 24
     num_products = 15
     url = f"https://www.baldor.com/api/products?include=results&language=en-US&pageIndex=3&pageSize={num_products}&category={catalog_number}"    
 
