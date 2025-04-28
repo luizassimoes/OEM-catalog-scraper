@@ -20,8 +20,11 @@ class OEMCatalogScraper:
 
     def __init__(self):
         self.driver = None
+        self.wait = None
         self.logger = logging.getLogger(__name__)
-        self.wait = WebDriverWait(self.driver, 20)
+        self.headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        }
 
 
     def set_chrome_options(self):
@@ -43,6 +46,7 @@ class OEMCatalogScraper:
         options = self.set_chrome_options()
         try:
             self.driver = webdriver.Chrome(options=options)
+            self.wait = WebDriverWait(self.driver, 30)
             self.logger.info('WebDriver started successfully.')
         except Exception as e:
             self.logger.error(f'ERR0R set_webdriver() | Failed to start WebDriver: {e}')
@@ -144,9 +148,9 @@ class OEMCatalogScraper:
 
     def get_products(self, url):
         self.logger.info('get_products')
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
-        }
+        # headers = {
+        #     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
+        # }
 
         # Fazer a requisição GET para obter o JSON
         response = requests.get(url, headers=headers)
