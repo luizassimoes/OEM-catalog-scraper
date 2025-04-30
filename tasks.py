@@ -3,7 +3,6 @@ import os
 import sys
 import time
 import json
-import shutil
 import logging
 import requests
 from selenium import webdriver
@@ -269,7 +268,7 @@ class OEMCatalogScraper:
             else:
                 self.logger.error(f'{product_id} Timeout - Could not download DWG file.')
         except Exception as e:
-            self.logger.error(f'{product_id} An exceptin occured while getting the CAD file:\n{e}')
+            self.logger.error(f'{product_id} An exception occured while getting the CAD file:\n{e}')
             # print('deu exception ', e)
 
         return assets
@@ -331,7 +330,7 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='output/0_OEM_Scraper.log')
     scraper.set_webdriver()
 
-    catalog_number = 312 # 16, 24, 69, 110, 312, 315...
+    catalog_number = 110 # 16, 24, 69, 110, 312, 315...
     num_products = 10
     url = f"https://www.baldor.com/api/products?include=results&language=en-US&pageIndex=3&pageSize={num_products}&category={catalog_number}"    
 
