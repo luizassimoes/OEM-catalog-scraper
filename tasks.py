@@ -8,7 +8,7 @@ import logging
 import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait, Select
+from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 from concurrent.futures import ThreadPoolExecutor
@@ -26,7 +26,7 @@ class OEMCatalogScraper:
 
 
     def set_chrome_options(self):
-        print('setando webdriver')
+        # print('setando webdriver')
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
@@ -46,7 +46,7 @@ class OEMCatalogScraper:
         }
         options.add_experimental_option('prefs', prefs)
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
-        print('webdriver setado')
+        # print('webdriver setado')
         return options
 
 
@@ -55,7 +55,7 @@ class OEMCatalogScraper:
         try:
             self.driver = webdriver.Chrome(options=options)
             self.wait = WebDriverWait(self.driver, 30)
-            self.logger.info('WebDriver started successfully.')
+            # self.logger.info('WebDriver started successfully.')
         except Exception as e:
             self.logger.error(f'ERR0R set_webdriver() | Failed to start WebDriver: {e}')
             # self.logger.error(f'Failed to start WebDriver.')
@@ -65,7 +65,7 @@ class OEMCatalogScraper:
         if self.driver:
             try:
                 self.driver.get(url)
-                self.logger.info(f'Opened URL: {url}')
+                # self.logger.info(f'Opened URL: {url}')
             except Exception as e:
                 self.logger.error(f'Failed to open URL {url}:\n {e}')
         else:
@@ -77,19 +77,20 @@ class OEMCatalogScraper:
                 EC.element_to_be_clickable(selector)
             )
             self.driver.execute_script("arguments[0].scrollIntoView({ block: 'center' });", element)
-            time.sleep(0.5)  # garantir que a rolagem tenha terminado
+            time.sleep(0.5)
             # element.click()
         except Exception as e:
-            self.logger.error(f"Erro ao clicar no elemento: {e}")
+            pass
+            # self.logger.error(f"An exception occured while scrolling down:\n{e}")
 
     def get_products(self, url):
-        self.logger.info('get_products')
+        # self.logger.info('get_products')
         try:
-            print('get products no try')
+            # print('get products no try')
             with requests.get(url, headers=self.headers) as response:
                 response.raise_for_status()  # Se der erro tipo 404, levanta exceção
                 if response.status_code == 200:
-                    print('get products deu certo')
+                    # print('get products deu certo')
                     # Converter a resposta para JSON e exibir
                     data = response.json()
 
@@ -120,7 +121,7 @@ class OEMCatalogScraper:
                         'specs': {'hp': hp, 'voltage': voltage, 'rpm': rpm, 'frame': frame}
                         }
                         result.append(formatted_item)
-                        print('resultado appendado')
+                        # print('resultado appendado')
 
                         self.logger.info(f'{product_id} basic information extracted.')
                     return result
@@ -132,11 +133,11 @@ class OEMCatalogScraper:
 
     
     def get_bom(self, product_code):
-        print('entrando no BOM')
+        # print('entrando no BOM')
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="parts"')
         self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'table.data-table tbody tr')))
         bom_rows = self.driver.find_elements(By.CSS_SELECTOR, 'table.data-table tbody tr')
-        print('BOM começar o for')
+        # print('BOM começar o for')
         bom_list = []
         for row in bom_rows:
             cells = row.find_elements(By.TAG_NAME, 'td')
@@ -145,7 +146,7 @@ class OEMCatalogScraper:
             quantity = cells[2].text
 
             if any([part_number, description, quantity]):
-                print('BOM deu bom')
+                # print('BOM deu bom')
                 quantity = int(quantity.split('.')[0])
                 bom_list.append({
                     "part_number": part_number,
@@ -155,32 +156,29 @@ class OEMCatalogScraper:
         return bom_list
 
     def get_assets(self, product_code):
-        print('get assets')
+        # print('get assets')
         assets = {"manual": '', "cad": '', "image": ''}
         assets_url = f'output/assets/{product_code}/'
         os.makedirs(os.path.dirname(assets_url), exist_ok=True)
 
-        print('assets pdf')
+        # print('assets pdf')
         pdf_url = f"https://www.baldor.com/api/products/{product_code}/infopacket"
         pdf_path = f'{assets_url}manual.pdf'
 
-        print('assets img')
+        # print('assets img')
         img_tag = self.driver.find_element(By.CLASS_NAME, 'product-image')
         img_url = img_tag.get_attribute('src') 
         img_path = f'{assets_url}img.jpg'
 
-        if img_url.endswith('images/451?bc=white&as=1&h=256&w=256'):
-            img_url = ''
-
-        print('assets for pdf img')
+        # print('assets for pdf img')
         for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
             try:
-                print('try ', product_code, asset)
+                # print('try ', product_id, asset)
                 with requests.get(url, stream=True, timeout=(5, 30), headers=self.headers) as response:
-                    response.raise_for_status()  # Se der erro tipo 404, levanta exceção
+                    response.raise_for_status()
                     with open(path, 'wb') as f:
                         f.write(response.content)
-                self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
+                # self.logger.info(f'{product_id} {asset.capitalize()} successfully downloaded.')
 
             except requests.exceptions.RequestException as e:
                 if not url:
@@ -191,39 +189,38 @@ class OEMCatalogScraper:
 
         # CAD 
         try:
-            print(product_code, ' vamos CAD')
+            # print(product_id, ' vamos CAD')
             self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="drawings"')
             self.scroll_down((By.XPATH, "//input[@value='2D']"))
-            print(product_code, ' CAD 1')
+            # print(product_id, ' CAD 1')
             self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//input[@value='2D']")))
-            print(product_code, ' CAD 2')
+            # print(product_id, ' CAD 2')
 
             try:
-                print('tentando fechar o allow')
+                # print('tentando fechar o allow')
                 # close_button = self.driver.find_element(By.CLASS_NAME, "adroll_consent_close_icon")
                 # print('pegou o fechar o allow', close_button)
                 banner = self.driver.find_element(By.ID, "adroll_consent_banner")
-                print('pegou o banner o allow', banner)
-                self.driver.delete_all_cookies()
+                # print('pegou o banner o allow', banner)
                 self.driver.execute_script("arguments[0].style.display = 'none';", banner)
-                print('cliclou')
+                # print('cliclou')
                 time.sleep(1)  # Espera curta para garantir que o banner sumiu
             except Exception as e:
-                print('deu ruim')
+                # print('deu ruim')
                 print(e)
             
             # self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            print(product_code, ' CAD 3')
+            # print(product_id, ' CAD 3')
 
             radio_button_2d = self.driver.find_element(By.XPATH, "//input[@value='2D']")
             radio_button_2d.click()
-            print(product_code, ' CAD 4')
+            # print(product_id, ' CAD 4')
 
             dropdown_button = self.wait.until(
                 EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'k-dropdown')]"))
             )
             dropdown_button.click()
-            print(product_code, ' CAD 5')
+            # print(product_id, ' CAD 5')
                     
             option = self.wait.until(
                 EC.element_to_be_clickable((By.XPATH, "//li[contains(text(), '2D AutoCAD DWG >=2000')]"))
@@ -234,30 +231,27 @@ class OEMCatalogScraper:
             )
             download_button.click()
             time.sleep(1)
-            print(product_code, ' CAD 6')
+            # print(product_id, ' CAD 6')
 
-            timeout = 60
             waiting_time = 0
             while waiting_time < timeout:
-                print(product_code, ' CAD 7')
+                # print(product_id, ' CAD 7')
                 arquivos = os.listdir(self.download_dir)
                 arquivos_crdownload = [arq for arq in arquivos if arq.lower().endswith('.tmp') or arq.lower().endswith('.crdownload')]
-                print(product_code, ' CAD 8')
+                # print(product_id, ' CAD 8')
 
                 if not arquivos_crdownload:
-                    print(product_code, ' CAD 9')
+                    # print(product_id, ' CAD 9')
                     arquivos = os.listdir(self.download_dir)
-                    print(product_code, arquivos)
+                    # print(product_id, arquivos)
                     arquivo_cad = [arq for arq in arquivos if arq.lower().endswith('.dwg')]
-                    print(product_code, ' CAD 10', arquivo_cad)
+                    # print(product_id, ' CAD 10', arquivo_cad)
                     if arquivo_cad:
                         filename_cad = arquivo_cad[0]
 
-                        print(product_code, ' CAD 11 ', filename_cad)
+                        # print(product_id, ' CAD 11 ', filename_cad)
                         old_path = os.path.join(self.download_dir, filename_cad)
-                        new_path = f'output/assets/{product_code}/cad.dwg'
-                        shutil.move(old_path, new_path)
-                        print(old_path, new_path)
+                        # print(old_path, new_path)
                         assets['cad'] = new_path.replace('output/', '')
                     break
 
@@ -266,23 +260,23 @@ class OEMCatalogScraper:
             else:
                 self.logger.error(f'{product_code} Timeout - Could not download DWG file.')
         except Exception as e:
-            print('deu exception ', e)
+            # print('deu exception ', e)
 
         return assets
 
     def processing_product(self, product):
-        self.logger.info('processing_product')
+        # self.logger.info('processing_product')
         product_id = product['product_id']
         self.logger.info(f'Product {product_id}.')
 
         product['bom'] = self.get_bom(product_id)
-        print('processing BOM')
+        # print('processing BOM')
         product['assets'] = self.get_assets(product_id)
-        print('processing ASSETS')
+        # print('processing ASSETS')
 
         not_found = []
         for key in product.keys():
-            print(product[key])
+            # print(product[key])
             if isinstance(product[key], dict):
                 for key_1 in product[key]:
                     if not product[key][key_1]:
@@ -290,15 +284,12 @@ class OEMCatalogScraper:
             if not product[key]:
                 not_found.append(key)
 
-        print('PASSOU NOT FOUND')
-        log_msg = f'{product_id} Information acquired.'
-        if not_found:
-            log_msg += f' Missing: {not_found}.'
+        # print('PASSOU NOT FOUND')
 
-        print('VAI SALVAR JSON')
+        # print('VAI SALVAR JSON')
         with open(f"output/{product_id}.json", "w", encoding="utf-8") as f:
             json.dump(product, f, ensure_ascii=False, indent=4)
-        print('SALVOU JSON')
+        # print('SALVOU JSON')
 
         self.logger.info(log_msg)
 
@@ -306,15 +297,14 @@ class OEMCatalogScraper:
         if self.driver:
             try:
                 self.driver.quit()
-                self.logger.info('WebDriver closed successfully.')
+                # self.logger.info('WebDriver closed successfully.')
             except Exception as e:
                 self.logger.error(f'Failed to close WebDriver.')
         else:
             self.logger.error('WebDriver not initialized.')
 
 def run_scraper_for_product(product):
-    print('RUN SCRAPER')
-    scraper = OEMCatalogScraper()
+    # print('RUN SCRAPER')
     scraper.set_webdriver()
     scraper.processing_product(product)
     scraper.close_all()
@@ -335,7 +325,7 @@ def main():
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         for product in products:
-            print('----------', product)
+            # print('----------', product)
             executor.submit(run_scraper_for_product, product)
 
     scraper.close_all()
