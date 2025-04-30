@@ -252,6 +252,9 @@ class OEMCatalogScraper:
 
                         # print(product_id, ' CAD 11 ', filename_cad)
                         old_path = os.path.join(self.download_dir, filename_cad)
+                        new_path = f'output/assets/{product_id}/cad.dwg'
+                        os.rename(old_path, new_path)
+                        # shutil.move(old_path, new_path)
                         # print(old_path, new_path)
                         assets['cad'] = new_path.replace('output/', '')
                         # self.logger.info(f'{product_id} DWG file successfully downloaded.')
