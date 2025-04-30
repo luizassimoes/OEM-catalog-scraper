@@ -15,14 +15,15 @@ from concurrent.futures import ThreadPoolExecutor
 
 class OEMCatalogScraper:
 
-    def __init__(self):
+    def __init__(self, download_dir=os.path.abspath('output/assets')):
         self.driver = None
         self.wait = None
         self.logger = logging.getLogger(__name__)
         self.headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36"
         }
-        self.download_dir = os.path.abspath('output/assets')
+        self.download_dir = download_dir # os.path.abspath('output/assets')
+        os.makedirs(os.path.dirname(self.download_dir), exist_ok=True)
 
 
     def set_chrome_options(self):
@@ -305,6 +306,8 @@ class OEMCatalogScraper:
 
 def run_scraper_for_product(product):
     # print('RUN SCRAPER')
+    product_id = product['product_id']
+    scraper = OEMCatalogScraper(download_dir=os.path.abspath(f'output/assets/{product_id}'))
     scraper.set_webdriver()
     scraper.processing_product(product)
     scraper.close_all()
