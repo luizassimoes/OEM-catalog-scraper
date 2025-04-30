@@ -1,12 +1,14 @@
 import re
 import os
+import sys
 import time
 import json
+import shutil
 import logging
 import requests
 from selenium import webdriver
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.ui import WebDriverWait, Select
 from selenium.webdriver.support import expected_conditions as EC
 
 from concurrent.futures import ThreadPoolExecutor
@@ -53,7 +55,7 @@ class OEMCatalogScraper:
             self.wait = WebDriverWait(self.driver, 30)
             self.logger.info('WebDriver started successfully.')
         except Exception as e:
-            self.logger.error(f'ERR0R set_webdriver() | Failed to start WebDriver: {e}')
+            sys.exit()
 
     def open_url(self, url: str):
         if self.driver:
@@ -134,6 +136,7 @@ class OEMCatalogScraper:
                     self.logger.info(f"{product_id} Error {response.status_code}: Inaccessible URL.")
         except requests.exceptions.RequestException as e:
             self.logger.error(f'Error trying to get products: {e}')
+            sys.exit()
 
     
     def get_bom(self, product_code):
@@ -164,18 +167,53 @@ class OEMCatalogScraper:
         # CAD
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="drawings"')
         self.scroll_down(None, max_scrolls=1)
+
+        self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//input[@value='2D']")))
+        
+        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+
         radio_button_2d = self.driver.find_element(By.XPATH, "//input[@value='2D']")
         radio_button_2d.click()
-        # dropdown = self.driver.find_element(By.XPATH, "//select[@kendo-drop-down-list]")
-        # dropdown.click()
-        # dwg = self.driver.find_element(By.XPATH, "//option[contains(@value, 'DWG')]")
-        # dwg.click()
-        # # CLICAR NO DOWNLOAD
 
+        dropdown_button = self.wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'k-dropdown')]"))
+        )
+        dropdown_button.click()
+                
+        option = self.wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//li[contains(text(), '2D AutoCAD DWG >=2000')]"))
+        )
+        option.click()
 
-        # pegar PDF se o link nao for igual
-        # pdf_tag = self.driver.find_element(By.ID, 'infoPacket')
-        # pdf_url = pdf_tag.get_attribute('href')
+        download_button = self.wait.until(
+            EC.element_to_be_clickable((By.ID, "cadDownload"))
+        )
+        download_button.click()
+        time.sleep(1)
+
+        timeout = 60
+        product_id = 'EGDM2333T'
+        waiting_time = 0
+        while waiting_time < timeout:
+            arquivos = os.listdir(self.download_dir)
+            arquivos_crdownload = [arq for arq in arquivos if arq.endswith('.tmp') or arq.endswith('.crdownload')]
+
+            if not arquivos_crdownload:
+                arquivos = os.listdir(self.download_dir)
+                arquivo_cad = [arq for arq in arquivos if arq.endswith('.dwg')]
+                if arquivo_cad:
+                    filename_cad = arquivo_cad[0]
+
+                    old_file_path = os.path.join(self.download_dir, filename_cad)
+                    new_file_path = os.path.join(f'output/assets/{product_id}',  'cad.dwg')
+                    shutil.move(old_file_path, new_file_path)
+                break
+
+            time.sleep(0.5)
+            waiting_time += 1
+        else:
+            self.logger.error(f'{product_code} Timeout - Could not download DWG file.')
+
 
         pdf_url = f"https://www.baldor.com/api/products/{product_code}/infopacket"
         pdf_path = f'{assets_url}manual.pdf'
