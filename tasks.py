@@ -68,32 +68,16 @@ class OEMCatalogScraper:
         else:
             self.logger.error('WebDriver not initialized. You must set_webdriver() first.')
 
-    def scroll_down(self, element_selector, max_scrolls=2):
-        """
-        Rola a página para baixo várias vezes para carregar todos os itens.
-        """
-        last_height = self.driver.execute_script("return document.body.scrollHeight")
-        
-        for i in range(max_scrolls):
-            time.sleep(1)  
-            self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-            time.sleep(2)  
-
-            new_height = self.driver.execute_script("return document.body.scrollHeight")
-            # print(i, ':', len(self.driver.find_elements(By.CSS_SELECTOR, element_selector)))
-
-            try:
-                self.wait.until(
-                    lambda d: len(d.find_elements(By.CSS_SELECTOR, element_selector)) >= 10*(i+2)
-                )
-                # print(len(self.driver.find_elements(By.CSS_SELECTOR, element_selector)))
-            except:
-                self.logger.info(f"Error scrolling down.")
-
-            if new_height == last_height:  # It means there are no more new content
-                break
-            last_height = new_height
-
+    def scroll_down(self, selector):
+        try:
+            element = WebDriverWait(self.driver, 10).until(
+                EC.element_to_be_clickable(selector)
+            )
+            self.driver.execute_script("arguments[0].scrollIntoView({ block: 'center' });", element)
+            time.sleep(0.5)  # garantir que a rolagem tenha terminado
+            # element.click()
+        except Exception as e:
+            self.logger.error(f"Erro ao clicar no elemento: {e}")
 
     def get_products(self, url):
         try:
