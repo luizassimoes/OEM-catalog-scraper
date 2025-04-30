@@ -230,12 +230,13 @@ class OEMCatalogScraper:
             download_button = self.wait.until(
                 EC.element_to_be_clickable((By.ID, "cadDownload"))
             )
-            download_button.click()
             time.sleep(1)
+            download_button.click()
+            time.sleep(2.5) # Adjust according to connection speed
             # print(product_id, ' CAD 6')
 
             waiting_time = 0
-            while waiting_time < timeout:
+            while waiting_time < 60:
                 # print(product_id, ' CAD 7')
                 arquivos = os.listdir(self.download_dir)
                 arquivos_crdownload = [arq for arq in arquivos if arq.lower().endswith('.tmp') or arq.lower().endswith('.crdownload')]
@@ -262,8 +263,8 @@ class OEMCatalogScraper:
                         self.logger.warning(f'{product_id} No DWG file found after download attempt.')
                     break
 
-                time.sleep(0.5)
-                waiting_time += 0.5
+                time.sleep(1)
+                waiting_time += 1
             else:
                 self.logger.error(f'{product_id} Timeout - Could not download DWG file.')
         except Exception as e:
