@@ -55,19 +55,20 @@ class OEMCatalogScraper:
             self.wait = WebDriverWait(self.driver, 30)
             self.logger.info('WebDriver started successfully.')
         except Exception as e:
+            self.logger.error(f'Failed to start WebDriver.')
             sys.exit()
 
     def open_url(self, url: str):
         if self.driver:
             try:
                 self.driver.get(url)
-                self.logger.info(f'Opened URL: {url}')
+                # self.logger.info(f'Opened URL: {url}')
             except Exception as e:
-                self.logger.error(f'ERROR open_url() | Failed to open URL {url}: {e}')
+                self.logger.error(f'Failed to open URL {url}:\n {e}')
         else:
-            self.logger.error('ERR0R open_url() | WebDriver not initialized. You must call set_webdriver() first.')
+            self.logger.error('WebDriver not initialized. You must set_webdriver() first.')
 
-    def scroll_down(self, element_selector, pause_time=3, max_scrolls=2):
+    def scroll_down(self, element_selector, max_scrolls=2):
         """
         Rola a página para baixo várias vezes para carregar todos os itens.
         """
@@ -87,7 +88,7 @@ class OEMCatalogScraper:
                 )
                 # print(len(self.driver.find_elements(By.CSS_SELECTOR, element_selector)))
             except:
-                self.logger.info(f"All page content loaded.")
+                self.logger.info(f"Error scrolling down.")
 
             if new_height == last_height:  # It means there are no more new content
                 break
@@ -130,7 +131,7 @@ class OEMCatalogScraper:
                         }
                         result.append(formatted_item)
 
-                        self.logger.info(f'{product_id} basic information extracted.')
+                        # self.logger.info(f'{product_id} basic information extracted.')
                     return result
                 else:
                     self.logger.info(f"{product_id} Error {response.status_code}: Inaccessible URL.")
@@ -231,7 +232,7 @@ class OEMCatalogScraper:
                     response.raise_for_status()  # Se der erro tipo 404, levanta exceção
                     with open(path, 'wb') as f:
                         f.write(response.content)
-                self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
+                # self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
 
             except requests.exceptions.RequestException as e:
                 if not url:
@@ -244,15 +245,24 @@ class OEMCatalogScraper:
 
     def processing_product(self, product):
         product_id = product['product_id']
-        self.logger.info(f'Product {product_id}.')
+        # self.logger.info(f'Product {product_id}.')
 
         product['bom'] = self.get_bom(product_id)
         product['assets'] = self.get_assets(product_id)
 
-        print(product)
+        not_found = []
+        for key in product.keys():
+            if not product[key]:
+                not_found.append(key)
+
+        log_msg = f'{product_id} Information acquired.'
+        if not_found:
+            log_msg += f' Missing: {not_found}.'
 
         with open(f"output/{product_id}.json", "w", encoding="utf-8") as f:
             json.dump(product, f, ensure_ascii=False, indent=4)
+
+        self.logger.info(log_msg)
 
     def close_all(self):
         if self.driver:
@@ -260,9 +270,9 @@ class OEMCatalogScraper:
                 self.driver.quit()
                 self.logger.info('WebDriver closed successfully.')
             except Exception as e:
-                self.logger.error(f'ERROR close_all() | Failed to close WebDriver: {e}')
+                self.logger.error(f'Failed to close WebDriver.')
         else:
-            self.logger.error('ERROR close_all() | WebDriver not initialized.')
+            self.logger.error('WebDriver not initialized.')
 
 def run_scraper_for_product(product):
     scraper = OEMCatalogScraper()
@@ -271,17 +281,18 @@ def run_scraper_for_product(product):
     scraper.close_all()
 
 def main():
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='output/0_logging.log')
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s') #, filename='output/0_logging.log')
 
     scraper = OEMCatalogScraper()
     scraper.set_webdriver()
 
-    catalog_number = 24
-    num_products = 15
+    catalog_number = 20
+    num_products = 3
     url = f"https://www.baldor.com/api/products?include=results&language=en-US&pageIndex=3&pageSize={num_products}&category={catalog_number}"    
 
-    scraper.logger.info(f'Getting data for {num_products} products in catalog {catalog_number}.')
+    scraper.logger.info(f'---------- Getting data for {num_products} products in catalog {catalog_number}.')
     products = scraper.get_products(url)
+    scraper.logger.info(f'---------- {len(products)} products gotten.')
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         for product in products:
