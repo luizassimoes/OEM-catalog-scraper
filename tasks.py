@@ -204,6 +204,7 @@ class OEMCatalogScraper:
                 banner = self.driver.find_element(By.ID, "adroll_consent_banner")
                 # print('pegou o banner o allow', banner)
                 self.driver.execute_script("arguments[0].style.display = 'none';", banner)
+                self.driver.delete_all_cookies()
                 # print('cliclou')
                 time.sleep(1)  # Espera curta para garantir que o banner sumiu
             except Exception as e:
@@ -289,7 +290,7 @@ class OEMCatalogScraper:
             if isinstance(product[key], dict):
                 for key_1 in product[key]:
                     if not product[key][key_1]:
-                        not_found.append(key)
+                        not_found.append(key_1)
             if not product[key]:
                 not_found.append(key)
 
@@ -330,15 +331,15 @@ def main():
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s', filename='output/0_OEM_Scraper.log')
     scraper.set_webdriver()
 
-    catalog_number = 24
-    num_products = 3
+    catalog_number = 312 # 16, 24, 69, 110, 312, 315...
+    num_products = 10
     url = f"https://www.baldor.com/api/products?include=results&language=en-US&pageIndex=3&pageSize={num_products}&category={catalog_number}"    
 
     scraper.logger.info(f'---------- Getting data for {num_products} products in catalog {catalog_number}.')
     products = scraper.get_products(url)
     scraper.logger.info(f'---------- {len(products)} products gotten.')
 
-    with ThreadPoolExecutor(max_workers=3) as executor:
+    with ThreadPoolExecutor(max_workers=2) as executor:
         for product in products:
             # print('----------', product)
             executor.submit(run_scraper_for_product, product)
