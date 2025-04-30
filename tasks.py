@@ -26,6 +26,7 @@ class OEMCatalogScraper:
 
 
     def set_chrome_options(self):
+        print('setando webdriver')
         options = webdriver.ChromeOptions()
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
@@ -45,6 +46,7 @@ class OEMCatalogScraper:
         }
         options.add_experimental_option('prefs', prefs)
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
+        print('webdriver setado')
         return options
 
 
@@ -55,14 +57,15 @@ class OEMCatalogScraper:
             self.wait = WebDriverWait(self.driver, 30)
             self.logger.info('WebDriver started successfully.')
         except Exception as e:
-            self.logger.error(f'Failed to start WebDriver.')
+            self.logger.error(f'ERR0R set_webdriver() | Failed to start WebDriver: {e}')
+            # self.logger.error(f'Failed to start WebDriver.')
             sys.exit()
 
     def open_url(self, url: str):
         if self.driver:
             try:
                 self.driver.get(url)
-                # self.logger.info(f'Opened URL: {url}')
+                self.logger.info(f'Opened URL: {url}')
             except Exception as e:
                 self.logger.error(f'Failed to open URL {url}:\n {e}')
         else:
@@ -80,10 +83,13 @@ class OEMCatalogScraper:
             self.logger.error(f"Erro ao clicar no elemento: {e}")
 
     def get_products(self, url):
+        self.logger.info('get_products')
         try:
+            print('get products no try')
             with requests.get(url, headers=self.headers) as response:
                 response.raise_for_status()  # Se der erro tipo 404, levanta exceção
                 if response.status_code == 200:
+                    print('get products deu certo')
                     # Converter a resposta para JSON e exibir
                     data = response.json()
 
@@ -114,8 +120,9 @@ class OEMCatalogScraper:
                         'specs': {'hp': hp, 'voltage': voltage, 'rpm': rpm, 'frame': frame}
                         }
                         result.append(formatted_item)
+                        print('resultado appendado')
 
-                        # self.logger.info(f'{product_id} basic information extracted.')
+                        self.logger.info(f'{product_id} basic information extracted.')
                     return result
                 else:
                     self.logger.info(f"{product_id} Error {response.status_code}: Inaccessible URL.")
@@ -125,9 +132,11 @@ class OEMCatalogScraper:
 
     
     def get_bom(self, product_code):
+        print('entrando no BOM')
         self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="parts"')
         self.wait.until(EC.presence_of_all_elements_located((By.CSS_SELECTOR, 'table.data-table tbody tr')))
         bom_rows = self.driver.find_elements(By.CSS_SELECTOR, 'table.data-table tbody tr')
+        print('BOM começar o for')
         bom_list = []
         for row in bom_rows:
             cells = row.find_elements(By.TAG_NAME, 'td')
@@ -136,6 +145,7 @@ class OEMCatalogScraper:
             quantity = cells[2].text
 
             if any([part_number, description, quantity]):
+                print('BOM deu bom')
                 quantity = int(quantity.split('.')[0])
                 bom_list.append({
                     "part_number": part_number,
@@ -145,6 +155,7 @@ class OEMCatalogScraper:
         return bom_list
 
     def get_assets(self, product_code):
+        print('get assets')
         assets = {"manual": '', "cad": '', "image": ''}
         assets_url = f'output/assets/{product_code}/'
         os.makedirs(os.path.dirname(assets_url), exist_ok=True)
@@ -153,6 +164,7 @@ class OEMCatalogScraper:
         pdf_url = f"https://www.baldor.com/api/products/{product_code}/infopacket"
         pdf_path = f'{assets_url}manual.pdf'
 
+        print('assets img')
         img_tag = self.driver.find_element(By.CLASS_NAME, 'product-image')
         img_url = img_tag.get_attribute('src') 
         img_path = f'{assets_url}img.jpg'
@@ -160,13 +172,15 @@ class OEMCatalogScraper:
         if img_url.endswith('images/451?bc=white&as=1&h=256&w=256'):
             img_url = ''
 
+        print('assets for pdf img')
         for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
             try:
+                print('try ', product_code, asset)
                 with requests.get(url, stream=True, timeout=(5, 30), headers=self.headers) as response:
                     response.raise_for_status()  # Se der erro tipo 404, levanta exceção
                     with open(path, 'wb') as f:
                         f.write(response.content)
-                # self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
+                self.logger.info(f'{product_code} {asset.capitalize()} successfully downloaded.')
 
             except requests.exceptions.RequestException as e:
                 if not url:
@@ -257,14 +271,18 @@ class OEMCatalogScraper:
         return assets
 
     def processing_product(self, product):
+        self.logger.info('processing_product')
         product_id = product['product_id']
-        # self.logger.info(f'Product {product_id}.')
+        self.logger.info(f'Product {product_id}.')
 
         product['bom'] = self.get_bom(product_id)
+        print('processing BOM')
         product['assets'] = self.get_assets(product_id)
+        print('processing ASSETS')
 
         not_found = []
         for key in product.keys():
+            print(product[key])
             if isinstance(product[key], dict):
                 for key_1 in product[key]:
                     if not product[key][key_1]:
@@ -272,12 +290,15 @@ class OEMCatalogScraper:
             if not product[key]:
                 not_found.append(key)
 
+        print('PASSOU NOT FOUND')
         log_msg = f'{product_id} Information acquired.'
         if not_found:
             log_msg += f' Missing: {not_found}.'
 
+        print('VAI SALVAR JSON')
         with open(f"output/{product_id}.json", "w", encoding="utf-8") as f:
             json.dump(product, f, ensure_ascii=False, indent=4)
+        print('SALVOU JSON')
 
         self.logger.info(log_msg)
 
@@ -292,6 +313,7 @@ class OEMCatalogScraper:
             self.logger.error('WebDriver not initialized.')
 
 def run_scraper_for_product(product):
+    print('RUN SCRAPER')
     scraper = OEMCatalogScraper()
     scraper.set_webdriver()
     scraper.processing_product(product)
@@ -303,7 +325,7 @@ def main():
     scraper = OEMCatalogScraper()
     scraper.set_webdriver()
 
-    catalog_number = 20
+    catalog_number = 24
     num_products = 3
     url = f"https://www.baldor.com/api/products?include=results&language=en-US&pageIndex=3&pageSize={num_products}&category={catalog_number}"    
 
@@ -313,6 +335,7 @@ def main():
 
     with ThreadPoolExecutor(max_workers=3) as executor:
         for product in products:
+            print('----------', product)
             executor.submit(run_scraper_for_product, product)
 
     scraper.close_all()
