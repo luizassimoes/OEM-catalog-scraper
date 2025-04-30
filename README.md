@@ -42,7 +42,7 @@ This project aims to scrape data from an industrial equipment catalog, extract r
 
 ### Executing the Script
 
-To execute the script, go to its main folder run the following command.
+To execute the script, go to its main folder and run the following command.
 
 ```bash
 python src/main.py
