@@ -236,6 +236,10 @@ class OEMCatalogScraper:
 
         not_found = []
         for key in product.keys():
+            if isinstance(product[key], dict):
+                for key_1 in product[key]:
+                    if not product[key][key_1]:
+                        not_found.append(key)
             if not product[key]:
                 not_found.append(key)
 
