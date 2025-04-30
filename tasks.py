@@ -149,57 +149,7 @@ class OEMCatalogScraper:
         assets_url = f'output/assets/{product_code}/'
         os.makedirs(os.path.dirname(assets_url), exist_ok=True)
 
-        # CAD
-        self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="drawings"')
-        self.scroll_down(None, max_scrolls=1)
-
-        self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//input[@value='2D']")))
-        
-        self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
-
-        radio_button_2d = self.driver.find_element(By.XPATH, "//input[@value='2D']")
-        radio_button_2d.click()
-
-        dropdown_button = self.wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'k-dropdown')]"))
-        )
-        dropdown_button.click()
-                
-        option = self.wait.until(
-            EC.element_to_be_clickable((By.XPATH, "//li[contains(text(), '2D AutoCAD DWG >=2000')]"))
-        )
-        option.click()
-
-        download_button = self.wait.until(
-            EC.element_to_be_clickable((By.ID, "cadDownload"))
-        )
-        download_button.click()
-        time.sleep(1)
-
-        timeout = 60
-        product_id = 'EGDM2333T'
-        waiting_time = 0
-        while waiting_time < timeout:
-            arquivos = os.listdir(self.download_dir)
-            arquivos_crdownload = [arq for arq in arquivos if arq.endswith('.tmp') or arq.endswith('.crdownload')]
-
-            if not arquivos_crdownload:
-                arquivos = os.listdir(self.download_dir)
-                arquivo_cad = [arq for arq in arquivos if arq.endswith('.dwg')]
-                if arquivo_cad:
-                    filename_cad = arquivo_cad[0]
-
-                    old_file_path = os.path.join(self.download_dir, filename_cad)
-                    new_file_path = os.path.join(f'output/assets/{product_id}',  'cad.dwg')
-                    shutil.move(old_file_path, new_file_path)
-                break
-
-            time.sleep(0.5)
-            waiting_time += 1
-        else:
-            self.logger.error(f'{product_code} Timeout - Could not download DWG file.')
-
-
+        print('assets pdf')
         pdf_url = f"https://www.baldor.com/api/products/{product_code}/infopacket"
         pdf_path = f'{assets_url}manual.pdf'
 
@@ -223,7 +173,86 @@ class OEMCatalogScraper:
                     self.logger.info(f'{product_code} No {asset} avaliable for this product.')
                 else:
                     self.logger.error(f'{product_code} Error trying to download the {asset}: {e}')
-            assets[asset] = path
+            assets[asset] = path.replace('output/', '')
+
+        # CAD 
+        try:
+            print(product_code, ' vamos CAD')
+            self.open_url(f'https://www.baldor.com/catalog/{product_code}#tab="drawings"')
+            self.scroll_down((By.XPATH, "//input[@value='2D']"))
+            print(product_code, ' CAD 1')
+            self.wait.until(EC.presence_of_all_elements_located((By.XPATH, "//input[@value='2D']")))
+            print(product_code, ' CAD 2')
+
+            try:
+                print('tentando fechar o allow')
+                # close_button = self.driver.find_element(By.CLASS_NAME, "adroll_consent_close_icon")
+                # print('pegou o fechar o allow', close_button)
+                banner = self.driver.find_element(By.ID, "adroll_consent_banner")
+                print('pegou o banner o allow', banner)
+                self.driver.delete_all_cookies()
+                self.driver.execute_script("arguments[0].style.display = 'none';", banner)
+                print('cliclou')
+                time.sleep(1)  # Espera curta para garantir que o banner sumiu
+            except Exception as e:
+                print('deu ruim')
+                print(e)
+            
+            # self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
+            print(product_code, ' CAD 3')
+
+            radio_button_2d = self.driver.find_element(By.XPATH, "//input[@value='2D']")
+            radio_button_2d.click()
+            print(product_code, ' CAD 4')
+
+            dropdown_button = self.wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//span[contains(@class, 'k-dropdown')]"))
+            )
+            dropdown_button.click()
+            print(product_code, ' CAD 5')
+                    
+            option = self.wait.until(
+                EC.element_to_be_clickable((By.XPATH, "//li[contains(text(), '2D AutoCAD DWG >=2000')]"))
+            )
+            option.click()
+            download_button = self.wait.until(
+                EC.element_to_be_clickable((By.ID, "cadDownload"))
+            )
+            download_button.click()
+            time.sleep(1)
+            print(product_code, ' CAD 6')
+
+            timeout = 60
+            waiting_time = 0
+            while waiting_time < timeout:
+                print(product_code, ' CAD 7')
+                arquivos = os.listdir(self.download_dir)
+                arquivos_crdownload = [arq for arq in arquivos if arq.lower().endswith('.tmp') or arq.lower().endswith('.crdownload')]
+                print(product_code, ' CAD 8')
+
+                if not arquivos_crdownload:
+                    print(product_code, ' CAD 9')
+                    arquivos = os.listdir(self.download_dir)
+                    print(product_code, arquivos)
+                    arquivo_cad = [arq for arq in arquivos if arq.lower().endswith('.dwg')]
+                    print(product_code, ' CAD 10', arquivo_cad)
+                    if arquivo_cad:
+                        filename_cad = arquivo_cad[0]
+
+                        print(product_code, ' CAD 11 ', filename_cad)
+                        old_path = os.path.join(self.download_dir, filename_cad)
+                        new_path = f'output/assets/{product_code}/cad.dwg'
+                        shutil.move(old_path, new_path)
+                        print(old_path, new_path)
+                        assets['cad'] = new_path.replace('output/', '')
+                    break
+
+                time.sleep(0.5)
+                waiting_time += 0.5
+            else:
+                self.logger.error(f'{product_code} Timeout - Could not download DWG file.')
+        except Exception as e:
+            print('deu exception ', e)
 
         return assets
 
