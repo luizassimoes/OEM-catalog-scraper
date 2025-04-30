@@ -247,14 +247,14 @@ class OEMCatalogScraper:
 
             waiting_time = 0
             while waiting_time < 60:
-                arquivos = os.listdir(self.download_dir)
-                arquivos_crdownload = [arq for arq in arquivos if arq.lower().endswith('.tmp') or arq.lower().endswith('.crdownload')]
+                files = os.listdir(self.download_dir)
+                files_crdownload = [arq for arq in files if arq.lower().endswith('.tmp') or arq.lower().endswith('.crdownload')]
 
-                if not arquivos_crdownload:
-                    arquivos = os.listdir(self.download_dir)
-                    arquivo_cad = [arq for arq in arquivos if arq.lower().endswith('.dwg')]
-                    if arquivo_cad:
-                        filename_cad = arquivo_cad[0]
+                if not files_crdownload:
+                    files = os.listdir(self.download_dir)
+                    file_cad = [arq for arq in files if arq.lower().endswith('.dwg')]
+                    if file_cad:
+                        filename_cad = file_cad[0]
 
                         old_path = os.path.join(self.download_dir, filename_cad)
                         new_path = f'output/assets/{product_id}/cad.dwg'
@@ -348,6 +348,7 @@ def main():
     using a ThreadPoolExecutor.
     Logs the start and completion of product data retrieval, the number of products processed, 
     and any issues or exceptions encountered during scraping.
+    To extract from all catalogs, just implement a `for` statement to the script. 
     Returns:
         None
     """
