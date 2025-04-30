@@ -101,7 +101,7 @@ class OEMCatalogScraper:
                                 frame = attribute['values'][0]['value']
 
                         product_id = item.get('code')
-                        name = item['categories'][0]['text'] if item['categories'] else None
+                        name = item['categories'][0]['text'] if item['categories'] else ''
                         if "Motors" in name:
                             name = name.replace('Motors', 'Motor')
                         else:
@@ -145,7 +145,7 @@ class OEMCatalogScraper:
         return bom_list
 
     def get_assets(self, product_code):
-        assets = {"manual": None, "cad": None, "image": None}
+        assets = {"manual": '', "cad": '', "image": ''}
         assets_url = f'output/assets/{product_code}/'
         os.makedirs(os.path.dirname(assets_url), exist_ok=True)
 
@@ -208,7 +208,7 @@ class OEMCatalogScraper:
         img_path = f'{assets_url}img.jpg'
 
         if img_url.endswith('images/451?bc=white&as=1&h=256&w=256'):
-            img_url = None
+            img_url = ''
 
         for asset, url, path in zip(['manual', 'image'], [pdf_url, img_url], [pdf_path, img_path]):
             try:
