@@ -31,8 +31,17 @@ class OEMCatalogScraper:
         options.add_argument('--disable-web-security')
         options.add_argument('--start-maximized')
         options.add_argument('--disable-dev-shm-usage')
-        options.add_argument("--log-level=3")
-        options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36")
+        options.add_argument('--log-level=3')
+        options.add_argument(self.headers)
+
+        download_dir = os.path.abspath('output/assets')
+        prefs = {
+            'download.default_directory': download_dir,
+            'download.prompt_for_download': False,
+            'directory_upgrade': True,
+            'safebrowsing.enabled': True
+        }
+        options.add_experimental_option('prefs', prefs)
         options.add_experimental_option('excludeSwitches', ['enable-logging'])
         return options
 
